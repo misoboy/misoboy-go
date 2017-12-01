@@ -1,0 +1,32 @@
+<script type="text/javascript">
+    $(document).ready(function(){
+
+    });
+
+    var DoBbs = {
+      detail : function(nttId){
+          $("#bbsForm > #nttId").val(nttId);
+          $("#bbsForm").attr("action", "/bbs/detail");
+          $("#bbsForm").submit();
+      }
+    };
+</script>
+<form name="bbsForm" id="bbsForm" method="post">
+    <input type="hidden" name="nttId" id="nttId" />
+<table border="1">
+    <thead>
+    <tr>
+        <th>Title</th>
+        <th>Content</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range $index, $results := . }}
+    <tr>
+        <td><a href="javascript:DoBbs.detail('{{$index}}')">{{.Title}}</a></td>
+        <td>{{.Content}}</td>
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+</form>
