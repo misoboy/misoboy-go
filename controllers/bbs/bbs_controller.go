@@ -5,6 +5,8 @@ import (
 	bbsService "misoboy_web/services/bbs"
 	webPagination "misoboy_web/common/pagination"
 	"github.com/misoboy/go-commons-lang/stringUtils"
+	"misoboy_web/models"
+	"strconv"
 )
 
 type BbsController struct {
@@ -26,8 +28,10 @@ func (c *BbsController) AnyListBy(bbsId string) mvc.Result {
 		PageSizeNo : "10",
 		JsFunction: "DoBbs.refreshList",
 	}
-
-	bbsList := c.Service.GetList(bbsId, pagination.PaginationSupport())
+	// pagination.PaginationSupport()
+	bbsVo := models.BbsVo{BbsId : bbsId}
+	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, Pagination: &pagination }
+	bbsList := c.Service.SelectBbsNttList(bbsNttVo)
 	pagination.SetTotalRecordCount(bbsList)
 
 	dataMap := make(map[string] interface{}, 0)
@@ -45,10 +49,11 @@ func (c *BbsController) AnyListBy(bbsId string) mvc.Result {
 	}
 }
 
-func (c *BbsController) AnyDetail() mvc.Result {
-	bbsId := c.Ctx.FormValue("bbsId")
-	nttSn := c.Ctx.FormValue("nttSn")
-	bbsDetail := c.Service.GetDetail(bbsId, nttSn)
+func (c *BbsController) GetDetailBy(bbsId string, nttSn int64) mvc.Result {
+	bbsVo := models.BbsVo{BbsId : bbsId}
+	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, NttSn: nttSn }
+
+	bbsDetail := c.Service.SelectBbsNttDetail(bbsNttVo)
 
 	dataMap := make(map[string] interface{}, 0)
 	dataMap["bbsDetail"] = bbsDetail
@@ -56,6 +61,64 @@ func (c *BbsController) AnyDetail() mvc.Result {
 
 	return mvc.View{
 		Name:   "bbs/detail.html",
-		Data: dataMap,
+		Data: map[string]interface{}{
+			"dataMap" : dataMap,
+		},
+	}
+}
+
+func (c *BbsController) GetUpdateBy(bbsId string, nttSn int64) mvc.Result {
+	bbsVo := models.BbsVo{BbsId : bbsId}
+	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, NttSn: nttSn }
+
+	bbsDetail := c.Service.SelectBbsNttDetail(bbsNttVo)
+
+	dataMap := make(map[string] interface{}, 0)
+	dataMap["bbsDetail"] = bbsDetail
+	dataMap["bbsId"] = bbsId
+
+	return mvc.View{
+		Name:   "bbs/update.html",
+		Data: map[string]interface{}{
+			"dataMap" : dataMap,
+		},
+	}
+}
+
+func (c *BbsController) PutUpdateBy(bbsId string) interface {} {
+	nttSn, _ := strconv.ParseInt(c.Ctx.FormValue("nttSn"), 10, 64)
+	nttSj := c.Ctx.FormValue("nttSj")
+	nttCn := c.Ctx.FormValue("nttCn")
+	bbsVo := models.BbsVo{BbsId : bbsId}
+	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, NttSn: nttSn, NttSj: nttSj, NttCn: nttCn }
+
+	rs := c.Service.UpdateBbsNtt(bbsNttVo)
+
+	return map[string]interface{}{
+		"result" : rs,
+	}
+}
+
+func (c *BbsController) DeleteUpdateBy(bbsId string, nttSn int64) interface {} {
+	bbsVo := models.BbsVo{BbsId : bbsId}
+	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, NttSn: nttSn }
+
+	rs := c.Service.DeleteBbsNtt(bbsNttVo)
+
+	return map[string]interface{}{
+		"result" : rs,
+	}
+}
+
+func (c *BbsController) PostInsertBy(bbsId string) interface {} {
+	bbsVo := models.BbsVo{BbsId : bbsId}
+	nttSj := c.Ctx.FormValue("nttSj")
+	nttCn := c.Ctx.FormValue("nttCn")
+	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, NttSj: nttSj, NttCn: nttCn, WrterId: "admin", WrterNm: "관리자" }
+
+	rs := c.Service.InsertBbsNtt(bbsNttVo)
+
+	return map[string]interface{}{
+		"result" : rs,
 	}
 }

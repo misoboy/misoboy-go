@@ -1,0 +1,56 @@
+<script type="text/javascript">
+    $(document).ready(function(){
+
+    });
+
+    var DoBbs = {
+        updateProc : function(nttSn){
+            if ( $("#nttSj").val().length == 0 ){
+                alert("제목을 입력 해주세요.");
+                $("#nttSj").focus();
+                return;
+            }
+            if ( $("#nttCn").val().length == 0 ){
+                alert("내용을 입력 해주세요.");
+                $("#nttCn").focus();
+                return;
+            }
+            $.ajax({
+                url : "/bbs/update/{{.dataMap.bbsId}}",
+                type : "put",
+                data : {
+                    "nttSn" : nttSn,
+                    "nttSj" : $("#nttSj").val(),
+                    "nttCn" : $("#nttCn").val()
+                },
+                success : function(rs){
+                    if ( rs.result >= 0 ){
+                        alert("수정 되었습니다.");
+                        location.href = "/bbs/detail/{{.dataMap.bbsId}}/" + nttSn;
+                    }
+                }
+            });
+        }
+    };
+</script>
+
+<form name="bbsForm" id="bbsForm" method="post">
+    <input type="hidden" name="nttSn" id="nttSn" />
+<table border="1">
+    <thead>
+    </thead>
+    <tbody>
+    <tr>
+        <th>제목</th>
+        <td><input type="text" name="nttSj" id="nttSj" value="{{.dataMap.bbsDetail.NTT_SJ}}" /></td>
+    </tr>
+    <tr>
+        <th>내용</th>
+        <td><textarea name="nttCn" id="nttCn">{{.dataMap.bbsDetail.NTT_CN}}</textarea></td>
+    </tr>
+    </tbody>
+</table>
+</form>
+
+<a href="javascript:DoBbs.updateProc('{{.dataMap.bbsDetail.NTT_SN}}')">확인</a>
+<a href="/bbs/list/{{.dataMap.bbsId}}">취소</a>
