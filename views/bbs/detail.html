@@ -1,14 +1,17 @@
 <table border="1">
     <thead>
-    <tr>
-        <th>Title</th>
-        <th>Content</th>
-    </tr>
     </thead>
     <tbody>
     <tr>
-        <td>{{.Title}}</td>
-        <td>{{.Content}}</td>
+        <th>제목</th>
+        <td>{{.bbsDetail.NTT_SJ}}</td>
+    </tr>
+    <tr>
+        <th>내용</th>
+        <td>{{.bbsDetail.NTT_CN}}</td>
     </tr>
     </tbody>
 </table>
+<a href="/bbs/list/{{.bbsId}}">목록</a>
+<a href="/bbs/delete/{{.bbsId}}/{{.bbsDetail.NTT_SN}}">삭제</a>
+<a href="/bbs/update/{{.bbsId}}/{{.bbsDetail.NTT_SN}}">수정</a>

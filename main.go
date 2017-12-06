@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"github.com/danryan/env"
 	"github.com/unrolled/render"
 	bbsController "misoboy_web/controllers/bbs"
@@ -35,24 +34,30 @@ func init() {
 	renderer = render.New(option)
 }
 
-func App() http.Handler {
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, you've requested: %s\n", r.URL.Path)
-	})
-
-	return nil
-}
-
-
 func main() {
 	app := iris.New()
-	tmpl := iris.HTML("./views", ".html")
-	tmpl.Reload(true)
+	app.Logger().SetLevel("debug")
+	tmpl := iris.HTML("./views", ".html").
+		Layout("layouts/layout.html").
+		Reload(true)
+	app.StaticWeb("/public", "./public")
 	app.RegisterView(tmpl)
 	vDataSource := datasource.NewDataSource()
 	vBbsRepository := bbsRepository.NewBbsRepository(vDataSource)
 	vBbsService := bbsService.NewBbsService(vBbsRepository)
 	app.Controller("/bbs", new(bbsController.BbsController), vBbsService)
-	app.Run(iris.Addr(":8080"))
+	//app.Run(iris.Addr(":8081"))
+
+	app.OnAnyErrorCode(func(ctx iris.Context) {
+		ctx.ViewData("Message", ctx.Values().
+			GetStringDefault("message", "The page you're looking for doesn't exist"))
+		ctx.View("common/error.html")
+	})
+
+	app.Run(
+		iris.Addr("localhost:8081"),
+		iris.WithoutVersionChecker,
+		iris.WithoutServerError(iris.ErrServerClosed),
+		iris.WithOptimizations, // enables faster json serialization and more
+	)
 }

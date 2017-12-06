@@ -4,29 +4,39 @@
     });
 
     var DoBbs = {
-      detail : function(nttId){
-          $("#bbsForm > #nttId").val(nttId);
+      detail : function(nttSn){
+          $("#bbsForm > #nttSn").val(nttSn);
           $("#bbsForm").attr("action", "/bbs/detail");
           $("#bbsForm").submit();
+      },
+      refreshList : function(pageIndex){
+          $("#bbsForm > #pageIndex").val(pageIndex);
+          $("#bbsForm").attr("action", "/bbs/list/{{.dataMap.bbsId}}");
+          $("#bbsForm").submit();
+
       }
     };
 </script>
 <form name="bbsForm" id="bbsForm" method="post">
-    <input type="hidden" name="nttId" id="nttId" />
+    <input type="hidden" name="pageIndex" id="pageIndex" value="{{.dataMap.pageIndex}}" />
+    <input type="hidden" name="nttSn" id="nttSn" />
+    <input type="hidden" name="bbsId" id="bbsId" value="{{.dataMap.bbsId}}" />
+
 <table border="1">
     <thead>
     <tr>
-        <th>Title</th>
-        <th>Content</th>
+        <th>제목</th>
+        <th>내용</th>
     </tr>
     </thead>
     <tbody>
-    {{ range $index, $results := . }}
+    {{ range $index, $results := .dataMap.bbsList }}
     <tr>
-        <td><a href="javascript:DoBbs.detail('{{$index}}')">{{.Title}}</a></td>
-        <td>{{.Content}}</td>
+        <td><a href="javascript:DoBbs.detail('{{.NTT_SN}}')">{{.NTT_SJ}}</a></td>
+        <td>{{.NTT_CN}}</td>
     </tr>
     {{ end }}
     </tbody>
 </table>
+    {{ .pagination }}
 </form>
