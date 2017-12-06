@@ -5,9 +5,11 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "log"
 	"fmt"
-	"strings"
+	"regexp"
 	"reflect"
+	"strings"
 	"misoboy_web/common/pagination"
+	"strconv"
 )
 
 func init(){
@@ -26,10 +28,10 @@ func init(){
 }*/
 
 type DataSource interface {
-	SelectQuery(query string, params ...interface{}) []map[string]interface{}
-	SelectOneQuery(query string, params ...interface{}) map[string]interface{}
-	UpdateQuery(query string, params ...interface{}) int64
-	DeleteQuery(query string, params ...interface{}) int64
+	SelectQuery(query string, param interface{}) []map[string]interface{}
+	SelectOneQuery(query string, param interface{}) map[string]interface{}
+	UpdateQuery(query string, param interface{}) int64
+	DeleteQuery(query string, param interface{}) int64
 }
 
 type dataSource struct {
@@ -51,15 +53,17 @@ func getOpenConnection () *sql.DB {
 	return db
 }
 
-func (r * dataSource) SelectQuery(query string, params ...interface{}) []map[string]interface{} {
+func (r * dataSource) SelectQuery(query string, param interface{}) []map[string]interface{} {
 	r.db = getOpenConnection ()
 
 	defer r.db.Close()
 	var tempRows *sql.Rows
 
-	if params != nil && len(params) > 0 {
-		paginationQuery, paginationParams := makePagination(query, params...)
-		rows, err := r.db.Query(paginationQuery, paginationParams...)
+	if param != nil {
+		query = queryBindParameters(query, param)
+		query = makePagination(query, param)
+
+		rows, err := r.db.Query(query)
 		if err != nil {
 			fmt.Println(err)
 			panic(err.Error())
@@ -69,6 +73,8 @@ func (r * dataSource) SelectQuery(query string, params ...interface{}) []map[str
 		rows, _ := r.db.Query(query)
 		tempRows = rows
 	}
+
+	fmt.Println(query)
 
 	dataMap := make([]map[string]interface{}, 0)
 	if tempRows != nil {
@@ -106,14 +112,15 @@ func (r * dataSource) SelectQuery(query string, params ...interface{}) []map[str
 	return dataMap
 }
 
-func (r * dataSource) SelectOneQuery(query string, params ...interface{}) map[string]interface{} {
+func (r * dataSource) SelectOneQuery(query string, param interface{}) map[string]interface{} {
 	r.db = getOpenConnection ()
 
 	defer r.db.Close()
 	var tempRows *sql.Rows
 
-	if params != nil && len(params) > 0 {
-		rows, err := r.db.Query(query, params...)
+	if param != nil {
+		query = queryBindParameters(query, param)
+		rows, err := r.db.Query(query)
 		if err != nil {
 			fmt.Println(err)
 			panic(err.Error())
@@ -123,6 +130,9 @@ func (r * dataSource) SelectOneQuery(query string, params ...interface{}) map[st
 		rows, _ := r.db.Query(query)
 		tempRows = rows
 	}
+
+	fmt.Println(query)
+
 	dataMap := make(map[string]interface{}, 0)
 	if tempRows != nil {
 		columns, err := tempRows.Columns()
@@ -159,11 +169,13 @@ func (r * dataSource) SelectOneQuery(query string, params ...interface{}) map[st
 	return dataMap
 }
 
-func (r * dataSource) UpdateQuery(query string, params ...interface{}) int64 {
+func (r * dataSource) UpdateQuery(query string, param interface{}) int64 {
 	r.db = getOpenConnection ()
 
 	defer r.db.Close()
-	result, err := r.db.Exec(query, params...)
+	query = queryBindParameters(query, param)
+	result, err := r.db.Exec(query)
+	fmt.Println(query)
 	if err != nil {
 		panic(err.Error())
 		return 0
@@ -173,11 +185,14 @@ func (r * dataSource) UpdateQuery(query string, params ...interface{}) int64 {
 	return num
 }
 
-func (r * dataSource) DeleteQuery(query string, params ...interface{}) int64 {
+func (r * dataSource) DeleteQuery(query string, param interface{}) int64 {
 	r.db = getOpenConnection ()
 
 	defer r.db.Close()
-	result, err := r.db.Exec(query, params...)
+	query = queryBindParameters(query, param)
+	result, err := r.db.Exec(query)
+
+	fmt.Println(query)
 	if err != nil {
 		panic(err.Error())
 		return 0
@@ -187,40 +202,128 @@ func (r * dataSource) DeleteQuery(query string, params ...interface{}) int64 {
 	return num
 }
 
-func makePagination(query string, params ...interface {}) ( string, []interface{} ) {
-	if params != nil && len(params) > 0 {
-		for _, v := range params {
-			for i, data := range v.([]interface{}){
-				if strings.EqualFold(reflect.TypeOf(data).String(), "map[string]string") {
-					options := (data).(map[string]string)
 
-					if strings.EqualFold(options["pagination"], "on") {
-						pageIndex := options["pageIndex"]
-						recordCountPerPage := options["recordCountPerPage"]
-						condOrder := options["condOrder"]
-						condAlign := options["condAlign"]
+func makePagination(query string, param interface {}) string {
+	if param != nil {
+		_, ptr := inspectStructV(reflect.ValueOf(param), "Pagination")
+		if ptr != nil {
+			paginationVo := ptr.(pagination.Pagination)
 
-						paginationConfig := pagination.Pagination{CurrentPageNo: pageIndex, RecordCountPerPageNo: recordCountPerPage}
+			if paginationVo.PaginationEnable == pagination.PAGINE_ENABLE_ON {
+				pageIndex := paginationVo.CurrentPageNo
+				recordCountPerPage := paginationVo.RecordCountPerPageNo
+				condOrder := paginationVo.CondOrder
+				condAlign := paginationVo.CondAlign
 
-						prefix := " SELECT * FROM (SELECT RESULT_LIST.*, @NO := @NO + 1 AS RNUM FROM( "
-						suffix := fmt.Sprintf(" ) RESULT_LIST, ( SELECT @NO := 0 ) RESULT_NO ) RESULT WHERE RESULT.RNUM <= %s + %s AND RESULT.RNUM > %s", paginationConfig.FirstRecordIndex(), paginationConfig.RecordCountPerPageNo, paginationConfig.FirstRecordIndex())
-						order := fmt.Sprintf(" ORDER BY %s %s", condOrder, condAlign)
+				paginationConfig := pagination.Pagination{CurrentPageNo: pageIndex, RecordCountPerPageNo: recordCountPerPage}
 
-						array := v.([]interface{})
-						params = append(array[:i], array[i+1:]...)
+				prefix := " SELECT * FROM (SELECT RESULT_LIST.*, @NO := @NO + 1 AS RNUM FROM( "
+				suffix := fmt.Sprintf(" ) RESULT_LIST, ( SELECT @NO := 0 ) RESULT_NO ) RESULT WHERE RESULT.RNUM <= %s + %s AND RESULT.RNUM > %s", paginationConfig.FirstRecordIndex(), paginationConfig.RecordCountPerPageNo, paginationConfig.FirstRecordIndex())
+				order := fmt.Sprintf(" ORDER BY %s %s", condOrder, condAlign)
 
-						fmt.Println(prefix + query + suffix)
-						if len(condOrder) > 0 && len(condAlign) > 0 {
-							return prefix + query + suffix + order, params
-						} else {
-							return prefix + query + suffix, params
-						}
-					}
-					break
+				if len(condOrder) > 0 && len(condAlign) > 0 {
+					return prefix + query + suffix + order
+				} else {
+					return prefix + query + suffix
 				}
 			}
 		}
 	}
 
-	return query, params
+	return query
+}
+
+
+func queryBindParameters(query string, param interface{}) string {
+
+	regexStr := regexp.MustCompile("(\\#|\\$){.*?}")
+	regexVar := regexp.MustCompile("([^(\\#|\\$)\\{]).*[^}]")
+	findStrs := regexStr.FindAllString(query, -1)
+	for i, v := range findStrs {
+		fieldName := strings.Title(regexVar.FindString(v))
+		isQuot := strings.HasPrefix(v, "#")
+		resultParam, _ := inspectStructV(reflect.ValueOf(param), fieldName)
+
+		if isQuot {
+			// parameter : ''
+			resultParam = "'" + resultParam + "'"
+		} else {
+			// parameter : non ''
+		}
+
+		query = strings.Replace(query, v, resultParam, i + 1)
+	}
+
+	return query
+}
+
+func inspectStructV(val reflect.Value, fieldName string) (string, interface {}) {
+
+	if val.Kind() == reflect.Interface && !val.IsNil() {
+		elm := val.Elem()
+		if elm.Kind() == reflect.Ptr && !elm.IsNil() && elm.Elem().Kind() == reflect.Ptr {
+			val = elm
+		}
+	}
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+
+	for i := 0; i < val.NumField(); i++ {
+		valueField := val.Field(i)
+		typeField := val.Type().Field(i)
+		//var address uintptr
+
+		if valueField.Kind() == reflect.Interface && !valueField.IsNil() {
+			elm := valueField.Elem()
+			if elm.Kind() == reflect.Ptr && !elm.IsNil() && elm.Elem().Kind() == reflect.Ptr {
+				valueField = elm
+			}
+		}
+
+		if valueField.Kind() == reflect.Ptr {
+			valueField = valueField.Elem()
+
+		}
+		if valueField.CanAddr() {
+			//address = fmt.Sprintf("0x%X", valueField.Addr().Pointer())
+			//address = valueField.Addr().Pointer()
+		}
+
+		if !valueField.IsValid() {
+			continue
+		}
+
+		/*fmt.Printf("Field Name: %s,\t Field Value: %v,\t Address: %v\t, Field type: %v\t, Field kind: %v\n", typeField.Name,
+			valueField.Interface(), address, typeField.Type, valueField.Kind())*/
+
+		if fieldName == typeField.Name {
+
+			var v string
+			switch valueField.Kind() {
+				case reflect.String:
+					v = valueField.String()
+				case reflect.Int:
+					v = strconv.FormatInt(valueField.Int(), 10)
+				case reflect.Int32:
+					v = strconv.FormatInt(valueField.Int(), 10)
+				case reflect.Int64:
+					v = strconv.FormatInt(valueField.Int(), 10)
+				default:
+					fmt.Println("Not support type of struct")
+					v = valueField.String()
+			}
+
+			return v, valueField.Interface()
+		}
+
+		if valueField.Kind() == reflect.Struct {
+			value, ptr := inspectStructV(valueField, fieldName)
+			if value != "" {
+				return value, ptr
+			}
+		}
+	}
+
+	return "", nil
 }

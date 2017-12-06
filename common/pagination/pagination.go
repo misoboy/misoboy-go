@@ -132,6 +132,5 @@ func (c *Pagination) SetTotalRecordCount(dataList []map[string]interface{}) {
 	if dataList != nil && len(dataList) > 0 {
 		dataMap := dataList[0]
 		c.TotalRecordCount = dataMap["TOT"].(string)
-		fmt.Println(c.TotalRecordCount)
 	}
 }
