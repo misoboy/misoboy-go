@@ -20,6 +20,10 @@ func (c *BbsController) GetMain() mvc.Result {
 	}
 }
 
+/**
+ * 게시글 목록
+ * Any : /bbs/list/{bbsId}
+ */
 func (c *BbsController) AnyListBy(bbsId string) mvc.Result {
 	pagination := webPagination.Pagination{
 		PaginationEnable : webPagination.PAGINE_ENABLE_ON,
@@ -49,6 +53,10 @@ func (c *BbsController) AnyListBy(bbsId string) mvc.Result {
 	}
 }
 
+/**
+ * 게시글 조회
+ * Get : /bbs/detail/{bbsId}/{nttSn}
+ */
 func (c *BbsController) GetDetailBy(bbsId string, nttSn int64) mvc.Result {
 	bbsVo := models.BbsVo{BbsId : bbsId}
 	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, NttSn: nttSn }
@@ -67,6 +75,10 @@ func (c *BbsController) GetDetailBy(bbsId string, nttSn int64) mvc.Result {
 	}
 }
 
+/**
+ * 게시글 수정 화면
+ * Get : /bbs/update/{bbsId}/{nttSn}
+ */
 func (c *BbsController) GetUpdateBy(bbsId string, nttSn int64) mvc.Result {
 	bbsVo := models.BbsVo{BbsId : bbsId}
 	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, NttSn: nttSn }
@@ -85,8 +97,11 @@ func (c *BbsController) GetUpdateBy(bbsId string, nttSn int64) mvc.Result {
 	}
 }
 
-func (c *BbsController) PutUpdateBy(bbsId string) interface {} {
-	nttSn, _ := strconv.ParseInt(c.Ctx.FormValue("nttSn"), 10, 64)
+/**
+ * 게시글 수정
+ * Put : /bbs/update/{bbsId}/{nttSn}
+ */
+func (c *BbsController) PutUpdateBy(bbsId string, nttSn int64) interface {} {
 	nttSj := c.Ctx.FormValue("nttSj")
 	nttCn := c.Ctx.FormValue("nttCn")
 	bbsVo := models.BbsVo{BbsId : bbsId}
@@ -99,7 +114,11 @@ func (c *BbsController) PutUpdateBy(bbsId string) interface {} {
 	}
 }
 
-func (c *BbsController) DeleteUpdateBy(bbsId string, nttSn int64) interface {} {
+/**
+ * 게시글 삭제
+ * Delete : /bbs/delete/{bbsId}/{nttSn}
+ */
+func (c *BbsController) DeleteDeleteBy(bbsId string, nttSn int64) interface {} {
 	bbsVo := models.BbsVo{BbsId : bbsId}
 	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, NttSn: nttSn }
 
@@ -110,15 +129,41 @@ func (c *BbsController) DeleteUpdateBy(bbsId string, nttSn int64) interface {} {
 	}
 }
 
+/**
+ * 게시글 등록 화면
+ * Get : /bbs/insert/{bbsId}
+ */
+func (c *BbsController) GetInsertBy(bbsId string) interface {} {
+
+	dataMap := make(map[string] interface{}, 0)
+	dataMap["bbsId"] = bbsId
+
+	return mvc.View{
+		Name:   "bbs/insert.html",
+		Data: map[string]interface{}{
+			"dataMap" : dataMap,
+		},
+	}
+}
+
+/**
+ * 게시글 등록
+ * Post : /bbs/insert/{bbsId}
+ */
 func (c *BbsController) PostInsertBy(bbsId string) interface {} {
 	bbsVo := models.BbsVo{BbsId : bbsId}
 	nttSj := c.Ctx.FormValue("nttSj")
 	nttCn := c.Ctx.FormValue("nttCn")
 	bbsNttVo := models.BbsNttVo{ BbsVo : bbsVo, NttSj: nttSj, NttCn: nttCn, WrterId: "admin", WrterNm: "관리자" }
 
+	bbsNttKey := c.Service.SelectBbsNttKey(bbsNttVo)
+	nttSn, _ := strconv.ParseInt(bbsNttKey["NTT_SN"].(string), 10, 64)
+	bbsNttVo.NttSn = nttSn
+
 	rs := c.Service.InsertBbsNtt(bbsNttVo)
 
 	return map[string]interface{}{
 		"result" : rs,
+		"nttSn" : bbsNttVo.NttSn,
 	}
 }
